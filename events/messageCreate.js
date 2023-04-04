@@ -2,10 +2,12 @@ const tf = require('@tensorflow/tfjs-node')
 const { getBufferImage } = require('../utils/functions')
 
 module.exports = async (client, message) => {
-    if (message.attachments.size > 0) {
-        let attachments = message.attachments.map(c => c.url)
+    let attachments = message.attachments.map(c => c.url)
+    let matches = message.content && message.content.match(/\bhttps?:\/\/\S+/gi) ? message.content.match(/\bhttps?:\/\/\S+/gi) : []
+    let array = [...attachments, ...matches]
 
-        for (const attachment of attachments) {
+    for (const attachment of array) {
+        try {
             let result = await classify(attachment)
 
             if (result) {
@@ -13,25 +15,8 @@ module.exports = async (client, message) => {
                 message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
                 break;
             }
-
-        }
-    } else if (message.content) {
-        let matches = message.content.match(/\bhttps?:\/\/\S+/gi)
-        if (Array.isArray(matches)) {
-            for (const attachment of matches) {
-                try {
-                    let result = await classify(attachment)
-
-                    if (result) {
-                        message.delete().catch(err => 0)
-                        message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
-                        break;
-                    }
-                } catch { }
-            }
-        }
+        } catch(e) { }
     }
-
 
     async function classify(attachment) {
         let buffer = await getBufferImage(attachment)
