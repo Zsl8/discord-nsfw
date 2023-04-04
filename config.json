@@ -1,0 +1,17 @@
+{
+    "client_token": "",
+
+    "colors": {
+        "blue": "#5865f2",
+        "red": "#f04747"
+    },
+
+    "limits": {
+        "Hentai": 40,
+        "Porn": 40,
+        "Sexy": 50,
+        "Drawing": 0,
+        "Neutral": 0,
+        "DrawingHentai": { "Drawing": 90, "Hentai": 4 }
+    }
+}
