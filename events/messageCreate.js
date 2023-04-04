@@ -3,47 +3,44 @@ const { getBufferImage } = require('../utils/functions')
 
 module.exports = async (client, message) => {
     if (message.attachments.size > 0) {
-        let nsfwCheck;
-        message.attachments.forEach(async attachment => {
-            let buffer = await getBufferImage(attachment.url)
-            let image = tf.node.decodeImage(buffer, 3)
+        let attachments = message.attachments.map(c => c.url)
 
-            let result = await (await client.model).classify(image)
-            result = decodeResult(result)
+        for (const attachment of attachments) {
+            let result = await classify(attachment)
 
-            let check = isNsfw(result, client.limits)
-            if (check) {
+            if (result) {
                 message.delete().catch(err => 0)
-                if (!nsfwCheck) {
-                    message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
-                }
-                nsfwCheck = true
+                message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
+                break;
             }
-        })
-    } else if (message.content) {
-        let matches = message.content.match(/https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?!&//=]*)/gi)
 
-        if (Array.isArray(matches)) {
-            let nsfwCheck;
-            matches.forEach(async item => {
-                try {
-                    let buffer = await getBufferImage(item)
-                    let image = tf.node.decodeImage(buffer, 3)
-
-                    let result = await (await client.model).classify(image)
-                    result = decodeResult(result)
-
-                    let check = isNsfw(result, client.limits)
-                    if (check) {
-                        message.delete().catch(err => 0)
-                        if (!nsfwCheck) {
-                            message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
-                        }
-                        nsfwCheck = true
-                    }
-                } catch {}
-            })
         }
+    } else if (message.content) {
+        let matches = message.content.match(/\bhttps?:\/\/\S+/gi)
+        if (Array.isArray(matches)) {
+            for (const attachment of matches) {
+                try {
+                    let result = await classify(attachment)
+
+                    if (result) {
+                        message.delete().catch(err => 0)
+                        message.channel.send({ content: `${message.author}, Your message has been deleted for nsfw content.\nplease don't send something similar to that content again` })
+                        break;
+                    }
+                } catch { }
+            }
+        }
+    }
+
+
+    async function classify(attachment) {
+        let buffer = await getBufferImage(attachment)
+        let image = tf.node.decodeImage(buffer, 3)
+
+        let result = await (await client.model).classify(image)
+        result = decodeResult(result)
+
+        return isNsfw(result, client.limits)
     }
 }
 
@@ -56,7 +53,7 @@ function decodeResult(result) {
 }
 
 function isNsfw(result, limits) {
-    if (
+    return Boolean(
         result.Sexy > limits.Sexy && limits.Sexy !== 0
         ||
         result.Porn > limits.Porn && limits.Porn !== 0
@@ -68,9 +65,5 @@ function isNsfw(result, limits) {
         result.Neutral > limits.Neutral && limits.Neutral !== 0
         ||
         result.Drawing > limits.DrawingHentai.Drawing && result.Hentai > limits.DrawingHentai.Hentai && limits.DrawingHentai.Hentai !== 0 && limits.DrawingHentai.Drawing !== 0
-    ) {
-        return true
-    } else {
-        return false
-    }
+    )
 }
